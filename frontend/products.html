@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Produtos — web_03mb</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="container">
+  <header>
+  <a href="/" class="logo">Listfy.</a>
+  <nav class="nav-row">
+    <a href="/">Home</a>
+    <a href="/products.html">Produtos</a>
+    <a href="/add.html">Cadastrar</a>
+  </nav>
+</header>
+
+  <main>
+    <h2 style="margin-top:0">Produtos</h2>
+    <section id="list" class="grid"></section>
+  </main>
+  </div>
+
+  <script>
+    async function load() {
+      const res = await fetch('/api/products');
+      const data = await res.json();
+      const list = document.getElementById('list');
+      if (!data || data.length === 0) {
+        list.innerHTML = '<div class="empty">Nenhum produto cadastrado.</div>';
+        return;
+      }
+      list.innerHTML = '';
+      data.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const title = document.createElement('h3');
+        title.textContent = p.nome || p.name || 'Sem nome';
+        const desc = document.createElement('div');
+        desc.className = 'muted';
+        desc.textContent = `ID: ${p.id} • ${p.create_time || p.created_at || ''}`;
+        const price = document.createElement('div');
+        price.className = 'price';
+        price.textContent = 'R$ ' + Number(p.preco || p.price || 0).toFixed(2);
+        card.appendChild(title);
+        card.appendChild(desc);
+        card.appendChild(price);
+        list.appendChild(card);
+      });
+    }
+    load().catch(e => document.getElementById('list').textContent = 'Erro ao carregar');
+  </script>
+</body>
+</html>

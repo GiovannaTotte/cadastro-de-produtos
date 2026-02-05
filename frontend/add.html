@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cadastrar — web_03mb</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="container">
+  <header>
+  <a href="/" class="logo">Listfy.</a>
+  <nav class="nav-row">
+    <a href="/">Home</a>
+    <a href="/products.html">Produtos</a>
+    <a href="/add.html">Cadastrar</a>
+  </nav>
+</header>
+
+  <main>
+    <div class="card" style="max-width:560px;margin:auto">
+      <h2 style="margin-top:0">Cadastrar produto</h2>
+      <form id="form">
+        <label>Nome
+          <input type="text" name="name" required>
+        </label>
+        <label>Preço
+          <input type="number" step="0.01" name="price" required>
+        </label>
+        <label>Descrição
+          <textarea name="descricao" placeholder="Descrição do produto (opcional)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:var(--glass);color:inherit;font-family:inherit;resize:vertical;min-height:80px"></textarea>
+        </label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button type="submit">Cadastrar</button>
+          <a href="/products.html" style="margin-left:8px"><button type="button">Ver produtos</button></a>
+        </div>
+      </form>
+      <div id="msg" class="msg" style="display:none"></div>
+    </div>
+  </main>
+  </div>
+
+  <script>
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const nome = form.name.value.trim();
+      const preco = parseFloat(form.price.value);
+      const descricao = form.descricao.value.trim();
+      const msg = document.getElementById('msg');
+      msg.style.display = 'none';
+      try {
+        const res = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, preco, descricao })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(()=>({error:'Erro'}));
+          throw new Error(err.error || 'Erro');
+        }
+        const created = await res.json();
+        msg.className = 'msg success';
+        msg.textContent = 'Produto cadastrado com id ' + created.id;
+        msg.style.display = 'block';
+        form.reset();
+      } catch (err) {
+        msg.className = 'msg error';
+        msg.textContent = 'Falha ao cadastrar: ' + (err.message || 'Erro');
+        msg.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
