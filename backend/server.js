@@ -69,3 +69,32 @@ app.use(express.static(frontendPath));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server started on http://localhost:${PORT}`));
+
+// Rota para deletar produto por ID
+app.delete('/api/products/:id', async (req, res) => {
+  const { id } = req.params;
+  const table = process.env.MYSQL_TABLE || 'products';
+
+  if (mysqlPool) {
+    try {
+      // Deleta do Banco de Dados MySQL
+      const [result] = await mysqlPool.query(`DELETE FROM \`${table}\` WHERE id = ?`, [id]);
+      
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: 'Produto não encontrado no banco' });
+      }
+      return res.json({ message: 'Produto deletado do MySQL com sucesso!' });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // Fallback: Deleta do Array em memória (se não houver MySQL)
+  const index = products.findIndex(p => p.id == id);
+  if (index !== -1) {
+    products.splice(index, 1);
+    return res.json({ message: 'Produto deletado da memória com sucesso!' });
+  } else {
+    return res.status(404).json({ error: 'Produto não encontrado na memória' });
+  }
+});
