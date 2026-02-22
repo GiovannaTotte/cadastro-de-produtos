@@ -23,34 +23,70 @@
   </main>
   </div>
 
-  <script>
-    async function load() {
-      const res = await fetch('/api/products');
-      const data = await res.json();
-      const list = document.getElementById('list');
-      if (!data || data.length === 0) {
-        list.innerHTML = '<div class="empty">Nenhum produto cadastrado.</div>';
-        return;
-      }
-      list.innerHTML = '';
-      data.forEach(p => {
-        const card = document.createElement('div');
-        card.className = 'card';
-        const title = document.createElement('h3');
-        title.textContent = p.nome || p.name || 'Sem nome';
-        const desc = document.createElement('div');
-        desc.className = 'muted';
-        desc.textContent = `ID: ${p.id} • ${p.create_time || p.created_at || ''}`;
-        const price = document.createElement('div');
-        price.className = 'price';
-        price.textContent = 'R$ ' + Number(p.preco || p.price || 0).toFixed(2);
-        card.appendChild(title);
-        card.appendChild(desc);
-        card.appendChild(price);
-        list.appendChild(card);
-      });
+<script>
+  async function load() {
+    const res = await fetch('/api/products');
+    const data = await res.json();
+    const list = document.getElementById('list');
+    
+    if (!data || data.length === 0) {
+      list.innerHTML = '<div class="empty">Nenhum produto cadastrado.</div>';
+      return;
     }
-    load().catch(e => document.getElementById('list').textContent = 'Erro ao carregar');
-  </script>
+
+    list.innerHTML = '';
+    data.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const title = document.createElement('h3');
+      title.textContent = p.nome || p.name || 'Sem nome';
+
+      const desc = document.createElement('div');
+      desc.className = 'muted';
+      desc.textContent = `ID: ${p.id} • ${p.create_time || p.created_at || ''}`;
+
+      const price = document.createElement('div');
+      price.className = 'price';
+      price.textContent = 'R$ ' + Number(p.preco || p.price || 0).toFixed(2);
+
+      // --- BOTAO DE DELETAR ---
+      const btnDelete = document.createElement('button');
+      btnDelete.textContent = 'Excluir';
+      btnDelete.className = 'btn-delete'; // Você pode estilizar no CSS
+      btnDelete.style.marginTop = '10px';
+      btnDelete.onclick = () => deleteProduct(p.id);
+      // ------------------------
+
+      card.appendChild(title);
+      card.appendChild(desc);
+      card.appendChild(price);
+      card.appendChild(btnDelete);
+      list.appendChild(card);
+    });
+  }
+
+  async function deleteProduct(id) {
+    if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+
+    try {
+      const res = await fetch(`/api/products/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        alert('Produto removido!');
+        load(); // Recarrega a lista automaticamente
+      } else {
+        alert('Erro ao deletar produto.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro na comunicação com o servidor.');
+    }
+  }
+
+  load().catch(e => document.getElementById('list').textContent = 'Erro ao carregar');
+</script>
 </body>
 </html>
