@@ -1,6 +1,8 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 let mysqlPool = null;
+let sqliteDb = null;
 try {
   const mysql = require('mysql2/promise');
   const { MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE } = process.env;
@@ -18,7 +20,31 @@ try {
     console.log('MySQL pool configured (host:', MYSQL_HOST + ')');
   }
 } catch (e) {
-  // mysql2 may not be installed yet; optional
+  // mysql2 may not be installed or cannot be loaded; will try sqlite fallback
+}
+
+// If MySQL isn't configured, try opening a local SQLite DB for persistence
+try {
+  const sqlite3 = require('sqlite3').verbose();
+  const sqliteFile = process.env.SQLITE_FILE || path.join(__dirname, '..', 'data.db');
+  sqliteDb = new sqlite3.Database(sqliteFile, (err) => {
+    if (err) {
+      console.error('Failed to open SQLite DB', err.message);
+      sqliteDb = null;
+      return;
+    }
+    console.log('SQLite DB opened at', sqliteFile);
+    sqliteDb.run(`CREATE TABLE IF NOT EXISTS products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT,
+      preco REAL,
+      descricao TEXT,
+      create_time DATETIME DEFAULT (datetime('now','localtime'))
+    )`);
+  });
+} catch (e) {
+  // sqlite3 not available; we'll use in-memory store as last fallback
+  sqliteDb = null;
 }
 const cors = require('cors');
 
@@ -39,6 +65,19 @@ app.get('/api/products', async (req, res) => {
       return res.status(500).json({ error: err.message });
     }
   }
+  if (sqliteDb) {
+    try {
+      const rows = await new Promise((resolve, reject) => {
+        sqliteDb.all(`SELECT * FROM products ORDER BY id DESC`, [], (err, rows) => {
+          if (err) return reject(err);
+          resolve(rows);
+        });
+      });
+      return res.json(rows);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
   res.json(products.slice().reverse());
 });
 
@@ -54,6 +93,23 @@ app.post('/api/products', async (req, res) => {
       const [result] = await mysqlPool.query(`INSERT INTO \`${table}\` (nome, preco, descricao) VALUES (?, ?, ?)`, [nomeProd, precoProd, descProd]);
       const [rows] = await mysqlPool.query(`SELECT * FROM \`${table}\` WHERE id = ?`, [result.insertId]);
       return res.status(201).json(rows[0]);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+  if (sqliteDb) {
+    try {
+      const created = await new Promise((resolve, reject) => {
+        sqliteDb.run(`INSERT INTO products (nome, preco, descricao) VALUES (?, ?, ?)`, [nomeProd, precoProd, descProd], function (err) {
+          if (err) return reject(err);
+          const id = this.lastID;
+          sqliteDb.get(`SELECT * FROM products WHERE id = ?`, [id], (e, row) => {
+            if (e) return reject(e);
+            resolve(row);
+          });
+        });
+      });
+      return res.status(201).json(created);
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -84,6 +140,21 @@ app.delete('/api/products/:id', async (req, res) => {
         return res.status(404).json({ error: 'Produto não encontrado no banco' });
       }
       return res.json({ message: 'Produto deletado do MySQL com sucesso!' });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  if (sqliteDb) {
+    try {
+      const changes = await new Promise((resolve, reject) => {
+        sqliteDb.run(`DELETE FROM products WHERE id = ?`, [id], function (err) {
+          if (err) return reject(err);
+          resolve(this.changes);
+        });
+      });
+      if (changes === 0) return res.status(404).json({ error: 'Produto não encontrado no banco SQLite' });
+      return res.json({ message: 'Produto deletado do SQLite com sucesso!' });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }

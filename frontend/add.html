@@ -22,10 +22,10 @@
       <h2 style="margin-top:0">Cadastrar produto</h2>
       <form id="form">
         <label>Nome
-          <input type="text" name="name" required>
+          <input type="text" name="nome" required>
         </label>
         <label>Preço
-          <input type="number" step="0.01" name="price" required>
+          <input type="number" step="0.01" name="preco" required>
         </label>
         <label>Descrição
           <textarea name="descricao" placeholder="Descrição do produto (opcional)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:var(--glass);color:inherit;font-family:inherit;resize:vertical;min-height:80px"></textarea>
@@ -44,29 +44,47 @@
     document.getElementById('form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.target;
-      const nome = form.name.value.trim();
-      const preco = parseFloat(form.price.value);
+      const nome = form.nome.value.trim();
+      const preco = parseFloat(form.preco.value);
       const descricao = form.descricao.value.trim();
       const msg = document.getElementById('msg');
       msg.style.display = 'none';
+      
+      if (!nome || isNaN(preco)) {
+        msg.className = 'msg error';
+        msg.textContent = 'Nome e Preço são obrigatórios';
+        msg.style.display = 'block';
+        return;
+      }
+      
       try {
+        const payload = { nome, preco, descricao };
+        console.log('Enviando:', payload);
+        
         const res = await fetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome, preco, descricao })
+          body: JSON.stringify(payload)
         });
+        
+        console.log('Resposta status:', res.status);
+        
         if (!res.ok) {
-          const err = await res.json().catch(()=>({error:'Erro'}));
-          throw new Error(err.error || 'Erro');
+          const err = await res.json().catch(()=>({error:'Erro desconhecido'}));
+          throw new Error(err.error || `Erro HTTP ${res.status}`);
         }
+        
         const created = await res.json();
         msg.className = 'msg success';
         msg.textContent = 'Produto cadastrado com id ' + created.id;
         msg.style.display = 'block';
         form.reset();
+        
+        setTimeout(() => window.location.href = '/products.html', 1500);
       } catch (err) {
+        console.error('Erro:', err);
         msg.className = 'msg error';
-        msg.textContent = 'Falha ao cadastrar: ' + (err.message || 'Erro');
+        msg.textContent = 'Falha ao cadastrar: ' + (err.message || 'Erro desconhecido');
         msg.style.display = 'block';
       }
     });
