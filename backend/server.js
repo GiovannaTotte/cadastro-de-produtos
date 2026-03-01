@@ -169,3 +169,91 @@ app.delete('/api/products/:id', async (req, res) => {
     return res.status(404).json({ error: 'Produto não encontrado na memória' });
   }
 });
+
+// Rota para buscar um produto específico por ID
+app.get('/api/products/:id', async (req, res) => {
+  const { id } = req.params;
+  const table = process.env.MYSQL_TABLE || 'products';
+
+  if (mysqlPool) {
+    try {
+      const [rows] = await mysqlPool.query(`SELECT * FROM \`${table}\` WHERE id = ?`, [id]);
+      if (rows.length === 0) return res.status(404).json({ error: 'Produto não encontrado' });
+      return res.json(rows[0]);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  if (sqliteDb) {
+    try {
+      const row = await new Promise((resolve, reject) => {
+        sqliteDb.get(`SELECT * FROM products WHERE id = ?`, [id], (err, row) => {
+          if (err) return reject(err);
+          resolve(row);
+        });
+      });
+      if (!row) return res.status(404).json({ error: 'Produto não encontrado' });
+      return res.json(row);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  const found = products.find(p => p.id == id);
+  if (!found) return res.status(404).json({ error: 'Produto não encontrado' });
+  res.json(found);
+});
+
+// Rota para atualizar um produto por ID
+app.put('/api/products/:id', async (req, res) => {
+  const { id } = req.params;
+  const { nome, preco, descricao, name, price } = req.body;
+  const nomeProd = nome || name;
+  const precoProd = preco || price;
+  const descProd = descricao || '';
+
+  if (!nomeProd || precoProd == null) return res.status(400).json({ error: 'Nome e preço são obrigatórios' });
+
+  const table = process.env.MYSQL_TABLE || 'products';
+
+  if (mysqlPool) {
+    try {
+      const [result] = await mysqlPool.query(`UPDATE \`${table}\` SET nome = ?, preco = ?, descricao = ? WHERE id = ?`, [nomeProd, precoProd, descProd, id]);
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Produto não encontrado' });
+      
+      const [rows] = await mysqlPool.query(`SELECT * FROM \`${table}\` WHERE id = ?`, [id]);
+      return res.json(rows[0]);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  if (sqliteDb) {
+    try {
+      const changes = await new Promise((resolve, reject) => {
+        sqliteDb.run(`UPDATE products SET nome = ?, preco = ?, descricao = ? WHERE id = ?`, [nomeProd, precoProd, descProd, id], function (err) {
+          if (err) return reject(err);
+          resolve(this.changes);
+        });
+      });
+      if (changes === 0) return res.status(404).json({ error: 'Produto não encontrado' });
+      
+      const row = await new Promise((resolve, reject) => {
+        sqliteDb.get(`SELECT * FROM products WHERE id = ?`, [id], (err, row) => {
+          if (err) return reject(err);
+          resolve(row);
+        });
+      });
+      return res.json(row);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  const idx = products.findIndex(p => p.id == id);
+  if (idx === -1) return res.status(404).json({ error: 'Produto não encontrado' });
+  
+  products[idx] = { ...products[idx], nome: nomeProd, preco: precoProd, descricao: descProd };
+  res.json(products[idx]);
+});

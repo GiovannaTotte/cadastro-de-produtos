@@ -55,6 +55,15 @@
         price.className = 'price';
         price.textContent = 'R$ ' + Number(p.preco || p.price || 0).toFixed(2);
 
+        // --- BOTAO DE EDITAR ---
+        const btnEdit = document.createElement('button');
+        btnEdit.textContent = 'Editar';
+        btnEdit.className = 'btn-edit';
+        btnEdit.style.marginTop = '10px';
+        btnEdit.style.marginRight = '8px';
+        btnEdit.onclick = () => window.location.href = `/edit.html?id=${p.id}`;
+        // -------------------------
+
         // --- BOTAO DE DELETAR ---
         const btnDelete = document.createElement('button');
         btnDelete.textContent = 'Excluir';
@@ -67,6 +76,7 @@
         card.appendChild(title);
         card.appendChild(desc);
         card.appendChild(price);
+        card.appendChild(btnEdit);
         card.appendChild(btnDelete);
         list.appendChild(card);
       });

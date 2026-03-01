@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Editar Produto — web_03mb</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+  <header>
+  <a href="/" class="logo">Listfy.</a>
+  <nav class="nav-row">
+    <a href="index.html">Home</a>
+    <a href="products.html">Produtos</a>
+    <a href="add.html">Cadastrar</a>
+  </nav>
+</header>
+
+  <main>
+    <div class="card" style="max-width:560px;margin:auto">
+      <h2 style="margin-top:0">Editar Produto</h2>
+      <form id="form">
+        <label>Nome
+          <input type="text" name="nome" required>
+        </label>
+        <label>Preço
+          <input type="number" step="0.01" name="preco" required>
+        </label>
+        <label>Descrição
+          <textarea name="descricao" placeholder="Descrição do produto (opcional)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:var(--glass);color:inherit;font-family:inherit;resize:vertical;min-height:80px"></textarea>
+        </label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button type="submit">Salvar</button>
+          <a href="products.html" style="margin-left:8px"><button type="button">Voltar</button></a>
+        </div>
+      </form>
+      <div id="msg" class="msg" style="display:none"></div>
+    </div>
+  </main>
+  </div>
+
+  <script>
+    // Obter ID do produto da URL
+    const params = new URLSearchParams(window.location.search);
+    const productId = params.get('id');
+
+    if (!productId) {
+      document.getElementById('msg').className = 'msg error';
+      document.getElementById('msg').textContent = 'Nenhum produto selecionado';
+      document.getElementById('msg').style.display = 'block';
+      document.getElementById('form').style.display = 'none';
+    } else {
+      // Carregar dados do produto
+      loadProduct(productId);
+    }
+
+    async function loadProduct(id) {
+      try {
+        console.log('Carregando produto id:', id);
+        const res = await fetch(`/api/products/${id}`);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        
+        const product = await res.json();
+        console.log('Produto carregado:', product);
+        
+        // Preencher formulário
+        document.querySelector('input[name="nome"]').value = product.nome || '';
+        document.querySelector('input[name="preco"]').value = product.preco || '';
+        document.querySelector('textarea[name="descricao"]').value = product.descricao || '';
+      } catch (err) {
+        console.error('Erro ao carregar produto:', err);
+        document.getElementById('msg').className = 'msg error';
+        document.getElementById('msg').textContent = 'Erro ao carregar produto: ' + err.message;
+        document.getElementById('msg').style.display = 'block';
+        document.getElementById('form').style.display = 'none';
+      }
+    }
+
+    // Enviar atualização
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const nome = form.nome.value.trim();
+      const preco = parseFloat(form.preco.value);
+      const descricao = form.descricao.value.trim();
+      const msg = document.getElementById('msg');
+      msg.style.display = 'none';
+      
+      if (!nome || isNaN(preco)) {
+        msg.className = 'msg error';
+        msg.textContent = 'Nome e Preço são obrigatórios';
+        msg.style.display = 'block';
+        return;
+      }
+      
+      try {
+        const payload = { nome, preco, descricao };
+        console.log('Atualizando produto:', productId, payload);
+        
+        const res = await fetch(`/api/products/${productId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        console.log('Resposta status:', res.status);
+        
+        if (!res.ok) {
+          const err = await res.json().catch(()=>({error:'Erro desconhecido'}));
+          throw new Error(err.error || `Erro HTTP ${res.status}`);
+        }
+        
+        const updated = await res.json();
+        msg.className = 'msg success';
+        msg.textContent = 'Produto atualizado com sucesso!';
+        msg.style.display = 'block';
+        
+        setTimeout(() => window.location.href = '/products.html', 1500);
+      } catch (err) {
+        console.error('Erro:', err);
+        msg.className = 'msg error';
+        msg.textContent = 'Falha ao atualizar: ' + (err.message || 'Erro desconhecido');
+        msg.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
